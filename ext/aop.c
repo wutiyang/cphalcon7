@@ -1049,7 +1049,11 @@ void phalcon_aop_do_write_property(HashPosition pos, zend_array *pointcut_table,
 }
 /*}}}*/
 
+#if PHP_VERSION_ID >= 70400
+zval *phalcon_aop_write_property(zval *object, zval *member, zval *value, void **cache_slot) /*{{{*/
+#else
 void phalcon_aop_write_property(zval *object, zval *member, zval *value, void **cache_slot) /*{{{*/
+#endif
 {
 	zval aop_object;
 	phalcon_aop_joinpoint_object *joinpoint;
@@ -1085,6 +1089,9 @@ void phalcon_aop_write_property(zval *object, zval *member, zval *value, void **
 	PHALCON_GLOBAL(aop).lock_write_property--;
 
 	zval_ptr_dtor(&aop_object);
+#if PHP_VERSION_ID >= 70400
+	return PHALCON_GLOBAL(aop).property_value;
+#endif
 }
 /*}}}*/
 

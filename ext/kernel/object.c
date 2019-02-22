@@ -30,6 +30,7 @@
 #include "kernel/operators.h"
 #include "kernel/string.h"
 
+#include <Zend/zend_compile.h>
 #include <Zend/zend_closures.h>
 
 /**
@@ -525,8 +526,25 @@ void phalcon_get_object_vars(zval *result, zval *object, int check_access) {
 		array_init(result);
 		if (check_access) {
 			ZEND_HASH_FOREACH_STR_KEY_VAL_IND(properties, key, value) {
+#if PHP_VERSION_ID >= 70400
+				zend_bool is_dynamic = 1;
+				if (Z_TYPE_P(value) == IS_INDIRECT) {
+					value = Z_INDIRECT_P(value);
+					if (UNEXPECTED(Z_ISUNDEF_P(value))) {
+						continue;
+					}
+
+					is_dynamic = 0;
+				}
+#endif
 				if (key) {
-					if (zend_check_property_access(zobj, key) == SUCCESS) {
+					if (
+#if PHP_VERSION_ID >= 70400
+						zend_check_property_access(zobj, key, is_dynamic) == SUCCESS
+#else
+						zend_check_property_access(zobj, key) == SUCCESS
+#endif
+					) {
 						if (Z_ISREF_P(value) && Z_REFCOUNT_P(value) == 1) {
 							value = Z_REFVAL_P(value);
 						}
@@ -576,7 +594,6 @@ void phalcon_get_object_members(zval *result, zval *object, int check_access) {
 
 	HashTable *properties;
 	zend_string *key;
-
 	zend_object *zobj;
 
 	if (Z_TYPE_P(object) == IS_OBJECT) {
@@ -598,7 +615,13 @@ void phalcon_get_object_members(zval *result, zval *object, int check_access) {
 
 		ZEND_HASH_FOREACH_STR_KEY(properties, key) {
 			if (key) {
-				if (!check_access || zend_check_property_access(zobj, key) == SUCCESS) {
+				if (
+#if PHP_VERSION_ID >= 70400
+					!check_access || zend_check_property_access(zobj, key, 1) == SUCCESS
+#else
+					!check_access || zend_check_property_access(zobj, key) == SUCCESS
+#endif
+				) {
 					if (ZSTR_VAL(key)[0] == 0) {
 						const char *prop_name, *class_name;
 						size_t prop_len;
